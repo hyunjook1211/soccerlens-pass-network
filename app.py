@@ -69,30 +69,58 @@ def show_analysis(df, key):
     with left:
         st.subheader("실시간 패스 네트워크")
         if len(G):
-            fig,ax = plt.subplots(figsize=(8,5.5))
+            fig,ax = plt.subplots(figsize=(9.5,6.2))
             pos = nx.spring_layout(G,seed=7,weight="weight")
             ws = [G[u][v]["weight"] for u,v in G.edges()]
             mw = max(ws) if ws else 1
             widths = [1 + 5*w/mw for w in ws]
             sizes = [1800 if n==top else 1050 for n in G.nodes()]
-            # pitch-like background
-            ax.set_facecolor("#eef7ee")
-            ax.add_patch(plt.Rectangle((-1.25,-1.0),2.5,2.0,fill=False,linewidth=1.5))
-            ax.plot([0,0],[-1,1],linewidth=1)
-            ax.add_patch(plt.Circle((0,0),0.22,fill=False,linewidth=1))
+            # 수행평가용: 네트워크 구조 자체가 잘 보이도록 단순 배경 사용
+            ax.set_facecolor("white")
             nx.draw_networkx_nodes(G,pos,node_size=sizes,ax=ax)
-            nx.draw_networkx_edges(G,pos,width=widths,alpha=.48,
-                                   arrows=True,arrowsize=18,ax=ax)
-            labels = {n: graph_label(n) for n in G.nodes()}
-            nx.draw_networkx_labels(G,pos,labels=labels,font_size=9,font_weight="bold",ax=ax)
+
+            # 사이중앙성 1위는 바깥 테두리로 한 번 더 강조
+            if top in G.nodes():
+                nx.draw_networkx_nodes(
+                    G, pos, nodelist=[top], node_size=2050,
+                    node_color="none", edgecolors="black", linewidths=3, ax=ax
+                )
+
+            nx.draw_networkx_edges(
+                G,pos,width=widths,alpha=.48,
+                arrows=True,arrowsize=18,
+                connectionstyle="arc3,rad=0.06",ax=ax
+            )
+
+            # 선수 이름을 노드 안이 아니라 바깥쪽에 배치
+            center_x = sum(x for x,y in pos.values()) / len(pos)
+            center_y = sum(y for x,y in pos.values()) / len(pos)
+            for n,(x,y) in pos.items():
+                dx = 16 if x >= center_x else -16
+                dy = 14 if y >= center_y else -14
+                ha = "left" if dx > 0 else "right"
+                ax.annotate(
+                    graph_label(n), (x,y),
+                    xytext=(dx,dy), textcoords="offset points",
+                    ha=ha, va="center", fontsize=9, fontweight="bold",
+                    bbox=dict(boxstyle="round,pad=0.22", fc="white", ec="0.75", alpha=0.92)
+                )
+
             edge_labels={(u,v):int(d["weight"]) for u,v,d in G.edges(data=True)}
-            nx.draw_networkx_edge_labels(G,pos,edge_labels=edge_labels,font_size=8,ax=ax)
+            nx.draw_networkx_edge_labels(
+                G,pos,edge_labels=edge_labels,font_size=8,
+                bbox=dict(alpha=0.75, edgecolor="none"),ax=ax
+            )
+
             if top in pos:
                 x,y = pos[top]
-                ax.annotate("BC #1", (x,y), xytext=(0,28), textcoords="offset points",
-                            ha="center", fontsize=9, fontweight="bold")
-            ax.set_xlim(-1.35,1.35)
-            ax.set_ylim(-1.1,1.1)
+                ax.annotate(
+                    "★ BC #1", (x,y), xytext=(0,34),
+                    textcoords="offset points", ha="center",
+                    fontsize=10, fontweight="bold"
+                )
+
+            ax.margins(0.25)
             ax.axis("off")
             st.pyplot(fig)
             st.caption("노드 위치는 실제 경기 위치가 아니라 선수 간 연결 관계를 보기 위한 배치입니다.")
