@@ -17,6 +17,16 @@ for candidate in ["Noto Sans CJK KR", "Noto Sans CJK JP", "NanumGothic", "Arial 
         break
 plt.rcParams["axes.unicode_minus"] = False
 
+
+def graph_label(name):
+    labels = {
+        "손흥민":"Son", "이강인":"Lee Kang-in", "황인범":"Hwang In-beom",
+        "황희찬":"Hwang Hee-chan", "김민재":"Kim Min-jae", "김영권":"Kim Young-gwon",
+        "정우영":"Jung Woo-young", "조규성":"Cho Gue-sung", "이재성":"Lee Jae-sung",
+        "설영우":"Seol Young-woo", "조현우":"Jo Hyeon-woo"
+    }
+    return labels.get(name, name)
+
 def analyze(df):
     G = nx.DiGraph()
     if not df.empty:
@@ -65,12 +75,24 @@ def show_analysis(df, key):
             mw = max(ws) if ws else 1
             widths = [1 + 5*w/mw for w in ws]
             sizes = [1800 if n==top else 1050 for n in G.nodes()]
+            # pitch-like background
+            ax.set_facecolor("#eef7ee")
+            ax.add_patch(plt.Rectangle((-1.25,-1.0),2.5,2.0,fill=False,linewidth=1.5))
+            ax.plot([0,0],[-1,1],linewidth=1)
+            ax.add_patch(plt.Circle((0,0),0.22,fill=False,linewidth=1))
             nx.draw_networkx_nodes(G,pos,node_size=sizes,ax=ax)
             nx.draw_networkx_edges(G,pos,width=widths,alpha=.48,
                                    arrows=True,arrowsize=18,ax=ax)
-            nx.draw_networkx_labels(G,pos,font_size=10,ax=ax)
+            labels = {n: graph_label(n) for n in G.nodes()}
+            nx.draw_networkx_labels(G,pos,labels=labels,font_size=9,font_weight="bold",ax=ax)
             edge_labels={(u,v):int(d["weight"]) for u,v,d in G.edges(data=True)}
             nx.draw_networkx_edge_labels(G,pos,edge_labels=edge_labels,font_size=8,ax=ax)
+            if top in pos:
+                x,y = pos[top]
+                ax.annotate("BC #1", (x,y), xytext=(0,28), textcoords="offset points",
+                            ha="center", fontsize=9, fontweight="bold")
+            ax.set_xlim(-1.35,1.35)
+            ax.set_ylim(-1.1,1.1)
             ax.axis("off")
             st.pyplot(fig)
             st.caption("노드 위치는 실제 경기 위치가 아니라 선수 간 연결 관계를 보기 위한 배치입니다.")
