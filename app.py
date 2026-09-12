@@ -53,15 +53,16 @@ def analyze(df):
 
     cl = nx.average_clustering(UG, weight="weight") if len(UG) > 1 else 0
     total = int(df["count"].sum()) if not df.empty else 0
-    top = max(bc,key=bc.get) if bc else "-"
-    topbc = bc.get(top,0)
-    return G, bc, cl, total, top, topbc
+    topbc = max(bc.values()) if bc else 0
+    top_players = [n for n,v in bc.items() if abs(v-topbc) < 1e-12] if bc else []
+    top = " · ".join(top_players) if top_players else "-"
+    return G, bc, cl, total, top, topbc, top_players
 
 def show_analysis(df, key):
-    G, bc, cl, total, top, topbc = analyze(df)
+    G, bc, cl, total, top, topbc, top_players = analyze(df)
     c1,c2,c3,c4 = st.columns(4)
     c1.metric("총 패스", f"{total:,}")
-    c2.metric("사이중앙성 1위", top)
+    c2.metric("사이중앙성 1위" if len(top_players) <= 1 else "사이중앙성 공동 1위", top)
     c3.metric("최고 BC", f"{topbc:.4f}")
     c4.metric("평균 클러스터링", f"{cl:.4f}")
 
@@ -74,15 +75,15 @@ def show_analysis(df, key):
             ws = [G[u][v]["weight"] for u,v in G.edges()]
             mw = max(ws) if ws else 1
             widths = [1 + 5*w/mw for w in ws]
-            sizes = [1800 if n==top else 1050 for n in G.nodes()]
+            sizes = [1800 if n in top_players else 1050 for n in G.nodes()]
             # 수행평가용: 네트워크 구조 자체가 잘 보이도록 단순 배경 사용
             ax.set_facecolor("white")
             nx.draw_networkx_nodes(G,pos,node_size=sizes,ax=ax)
 
             # 사이중앙성 1위는 바깥 테두리로 한 번 더 강조
-            if top in G.nodes():
+            if top_players:
                 nx.draw_networkx_nodes(
-                    G, pos, nodelist=[top], node_size=2050,
+                    G, pos, nodelist=top_players, node_size=2050,
                     node_color="none", edgecolors="black", linewidths=3, ax=ax
                 )
 
@@ -112,13 +113,14 @@ def show_analysis(df, key):
                 bbox=dict(alpha=0.75, edgecolor="none"),ax=ax
             )
 
-            if top in pos:
-                x,y = pos[top]
-                ax.annotate(
-                    "★ BC #1", (x,y), xytext=(0,34),
-                    textcoords="offset points", ha="center",
-                    fontsize=10, fontweight="bold"
-                )
+            for leader in top_players:
+                if leader in pos:
+                    x,y = pos[leader]
+                    ax.annotate(
+                        "★ BC #1", (x,y), xytext=(0,34),
+                        textcoords="offset points", ha="center",
+                        fontsize=10, fontweight="bold"
+                    )
 
             ax.margins(0.25)
             ax.axis("off")
@@ -139,9 +141,15 @@ def show_analysis(df, key):
 
         st.subheader("자동 분석")
         if total:
-            st.write(f"현재 총 {total}회의 패스가 기록되었습니다. "
-                     f"{top}의 사이중앙성이 가장 높아 선수들을 연결하는 다리 역할이 "
-                     f"상대적으로 크게 나타납니다. 평균 클러스터링은 {cl:.4f}입니다.")
+            if len(top_players) > 1:
+                st.write(f"현재 총 {total}회의 패스가 기록되었습니다. "
+                         f"{top}이(가) 사이중앙성 공동 1위({topbc:.4f})로, "
+                         f"선수들을 연결하는 다리 역할이 상대적으로 크게 나타납니다. "
+                         f"평균 클러스터링은 {cl:.4f}입니다.")
+            else:
+                st.write(f"현재 총 {total}회의 패스가 기록되었습니다. "
+                         f"{top}의 사이중앙성이 가장 높아 선수들을 연결하는 다리 역할이 "
+                         f"상대적으로 크게 나타납니다. 평균 클러스터링은 {cl:.4f}입니다.")
         else:
             st.write("패스를 기록하면 분석이 자동으로 표시됩니다.")
 
